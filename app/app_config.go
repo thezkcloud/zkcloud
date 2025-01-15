@@ -8,7 +8,6 @@ import (
 	bankmodulev1 "cosmossdk.io/api/cosmos/bank/module/v1"
 	circuitmodulev1 "cosmossdk.io/api/cosmos/circuit/module/v1"
 	consensusmodulev1 "cosmossdk.io/api/cosmos/consensus/module/v1"
-	crisismodulev1 "cosmossdk.io/api/cosmos/crisis/module/v1"
 	distrmodulev1 "cosmossdk.io/api/cosmos/distribution/module/v1"
 	evidencemodulev1 "cosmossdk.io/api/cosmos/evidence/module/v1"
 	feegrantmodulev1 "cosmossdk.io/api/cosmos/feegrant/module/v1"
@@ -32,7 +31,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
-	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -64,7 +62,6 @@ var (
 		slashingtypes.ModuleName,
 		govtypes.ModuleName,
 		minttypes.ModuleName,
-		crisistypes.ModuleName,
 		ibcexported.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
@@ -104,7 +101,6 @@ var (
 
 	endBlockers = []string{
 		// cosmos sdk modules
-		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		feegrant.ModuleName,
@@ -243,10 +239,6 @@ var (
 			{
 				Name:   govtypes.ModuleName,
 				Config: appconfig.WrapAny(&govmodulev1.Module{}),
-			},
-			{
-				Name:   crisistypes.ModuleName,
-				Config: appconfig.WrapAny(&crisismodulev1.Module{}),
 			},
 			{
 				Name:   consensustypes.ModuleName,
