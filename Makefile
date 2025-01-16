@@ -19,6 +19,17 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=$(APPNAME) \
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
+
+
+##############
+###  Init  ###
+##############
+
+init:
+	./scripts/init.sh
+
+.PHONY: init
+
 ##############
 ###  Test  ###
 ##############
