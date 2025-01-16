@@ -32,6 +32,9 @@ $DAEMON_BIN init zkcloud-node --chain-id $CHAIN_ID
 sed -i'' -e 's/timeout_commit = "5s"/timeout_commit = "1s"/' "$DAEMON_HOME"/config/config.toml
 sed -i'' -e 's/prometheus = false/prometheus = true/' "$DAEMON_HOME"/config/config.toml
 
+# Set minimum gas prices
+sed -i'' -e 's/minimum-gas-prices = ""/minimum-gas-prices = "0.1uproof"/' "$DAEMON_HOME"/config/app.toml
+
 # Create accounts
 $DAEMON_BIN keys add validator --keyring-backend test
 $DAEMON_BIN keys add alice --keyring-backend test
