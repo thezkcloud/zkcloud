@@ -1,0 +1,36 @@
+[Unit]
+Description=Validator container - %N
+Wants=network.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c '/usr/bin/podman volume exists %N-data || /usr/bin/podman volume create %N-data'
+ExecStartPre=/usr/bin/rm -f /run/%N.ctr-id
+ExecStart=/usr/bin/podman run \
+    --conmon-pidfile=/run/%N.pid \
+    --cidfile=/run/%N.ctr-id \
+    --cgroups=no-conmon \
+    --detach \
+    --replace \
+    --name=%N \
+    -v %N-data:/home/zkcloud:Z \
+    -p 1317:1317 \
+    -p 9090:9090 \
+    -p 26656:26656 \
+    -p 26657:26657 \
+    -p 26660:26660 \
+    -p 26661:26661 \
+    ghcr.io/thezkcloud/zkcloud:latest \
+    start
+
+ExecStop=/usr/bin/podman stop --ignore --cidfile=/run/%N.ctr-id
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile=/run/%N.ctr-id
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=70
+KillMode=mixed
+PIDFile=/run/%N.pid
+
+[Install]
+WantedBy=multi-user.target
