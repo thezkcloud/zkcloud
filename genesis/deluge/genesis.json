@@ -36,7 +36,7 @@
     "consensus": null,
     "distribution": {
       "params": {
-        "community_tax": "0.020000000000000000",
+        "community_tax": "0.000000000000000000",
         "base_proposer_reward": "0.000000000000000000",
         "bonus_proposer_reward": "0.000000000000000000",
         "withdraw_addr_enabled": true
@@ -74,7 +74,7 @@
         "min_deposit": [
           {
             "denom": "uproof",
-            "amount": "10000000"
+            "amount": "1000000000"
           }
         ],
         "max_deposit_period": "172800s",
@@ -90,7 +90,7 @@
         "expedited_min_deposit": [
           {
             "denom": "uproof",
-            "amount": "50000000"
+            "amount": "5000000000"
           }
         ],
         "burn_vote_quorum": false,
@@ -102,25 +102,25 @@
     },
     "mint": {
       "minter": {
-        "inflation": "0.130000000000000000",
+        "inflation": "0.030000000000000000",
         "annual_provisions": "0.000000000000000000"
       },
       "params": {
         "mint_denom": "uproof",
-        "inflation_rate_change": "0.130000000000000000",
-        "inflation_max": "0.200000000000000000",
-        "inflation_min": "0.070000000000000000",
+        "inflation_rate_change": "0.010000000000000000",
+        "inflation_max": "0.040000000000000000", 
+        "inflation_min": "0.020000000000000000",
         "goal_bonded": "0.670000000000000000",
-        "blocks_per_year": "6311520"
+        "blocks_per_year": "31536000"
       }
     },
     "params": null,
     "runtime": null,
     "slashing": {
       "params": {
-        "signed_blocks_window": "100",
-        "min_signed_per_window": "0.500000000000000000",
-        "downtime_jail_duration": "600s",
+        "signed_blocks_window": "10000",
+        "min_signed_per_window": "0.750000000000000000",
+        "downtime_jail_duration": "1800s",
         "slash_fraction_double_sign": "0.050000000000000000",
         "slash_fraction_downtime": "0.010000000000000000"
       },
@@ -130,7 +130,7 @@
     "staking": {
       "params": {
         "unbonding_time": "1814400s",
-        "max_validators": 100,
+        "max_validators": 60,
         "max_entries": 7,
         "historical_entries": 10000,
         "bond_denom": "uproof",
@@ -150,8 +150,8 @@
   "consensus": {
     "params": {
       "block": {
-        "max_bytes": "22020096",
-        "max_gas": "-1"
+        "max_bytes": "5242880",
+        "max_gas": "30000000"
       },
       "evidence": {
         "max_age_num_blocks": "100000",
