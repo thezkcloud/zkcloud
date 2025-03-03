@@ -77,7 +77,7 @@ or a similar setup where each node has a manually configurable IP address.
 Note, strict routability for addresses is turned off in the config file.
 
 Example:
-	zkcloudd multi-node --v 4 --output-dir ./.testnets --validators-stake-amount 1000000,200000,300000,400000 --list-ports 47222,50434,52851,44210
+	zkcloudd multi-node --v 4 --output-dir ./.testnets --validators-stake-amount 1000000,200000,300000,400000
 	`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -108,7 +108,7 @@ Example:
 					if !ok {
 						continue
 					}
-					args.validatorsStakesAmount[top] = sdk.NewCoin(sdk.DefaultBondDenom, a)
+					args.validatorsStakesAmount[top] = sdk.NewCoin("uproof", a)
 					top += 1
 				}
 
@@ -146,7 +146,7 @@ func addTestnetFlagsToCmd(cmd *cobra.Command) {
 	cmd.Flags().Int(flagNumValidators, 4, "Number of validators to initialize the testnet with")
 	cmd.Flags().StringP(flagOutputDir, "o", "./.testnets", "Directory to store initialization data for the testnet")
 	cmd.Flags().String(flags.FlagChainID, "", "genesis file chain-id, if left blank will be randomly created")
-	cmd.Flags().String(server.FlagMinGasPrices, fmt.Sprintf("0.0001%s", sdk.DefaultBondDenom), "Minimum gas prices to accept for transactions; All fees in a tx must meet this minimum (e.g. 0.01photino,0.001stake)")
+	cmd.Flags().String(server.FlagMinGasPrices, fmt.Sprintf("0.0001%s", "uproof"), "Minimum gas prices to accept for transactions; All fees in a tx must meet this minimum (e.g. 0.01photino,0.001stake)")
 	cmd.Flags().String(flags.FlagKeyType, string(hd.Secp256k1Type), "Key signing algorithm to generate keys for")
 
 	// support old flags name for backwards compatibility
@@ -177,7 +177,7 @@ func initTestnetFiles(
 	appConfig := srvconfig.DefaultConfig()
 	appConfig.MinGasPrices = args.minGasPrices
 	appConfig.API.Enable = false
-	appConfig.BaseConfig.MinGasPrices = "0.0001" + sdk.DefaultBondDenom
+	appConfig.BaseConfig.MinGasPrices = "0.0001uproof"
 	appConfig.Telemetry.EnableHostnameLabel = false
 	appConfig.Telemetry.Enabled = false
 	appConfig.Telemetry.PrometheusRetentionTime = 0
@@ -256,7 +256,7 @@ func initTestnetFiles(
 		accStakingTokens := sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction)
 		coins := sdk.Coins{
 			sdk.NewCoin("testtoken", accTokens),
-			sdk.NewCoin(sdk.DefaultBondDenom, accStakingTokens),
+			sdk.NewCoin("uproof", accStakingTokens),
 		}
 
 		genBalances = append(genBalances, banktypes.Balance{Address: addr.String(), Coins: coins.Sort()})
@@ -265,7 +265,7 @@ func initTestnetFiles(
 		var valTokens sdk.Coin
 		valTokens, ok := args.validatorsStakesAmount[i]
 		if !ok {
-			valTokens = sdk.NewCoin(sdk.DefaultBondDenom, sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction))
+			valTokens = sdk.NewCoin("uproof", sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction))
 		}
 		createValMsg, err := stakingtypes.NewMsgCreateValidator(
 			sdk.ValAddress(addr).String(),
@@ -444,8 +444,8 @@ func collectGenFiles(
 		nodeConfig.P2P.PersistentPeers = persistentPeers
 		nodeConfig.P2P.AllowDuplicateIP = true
 		nodeConfig.P2P.ListenAddress = "tcp://0.0.0.0:" + strconv.Itoa(26656-3*i)
-		nodeConfig.RPC.ListenAddress = "tcp://127.0.0.1:" + args.ports[i]
-		nodeConfig.BaseConfig.ProxyApp = "tcp://127.0.0.1:" + strconv.Itoa(26658-3*i)
+		nodeConfig.RPC.ListenAddress = "tcp://0.0.0.0:" + args.ports[i]
+		nodeConfig.BaseConfig.ProxyApp = "tcp://0.0.0.0:" + strconv.Itoa(26658-3*i)
 		nodeConfig.Instrumentation.PrometheusListenAddr = ":" + strconv.Itoa(26660+i)
 		nodeConfig.Instrumentation.Prometheus = true
 		cmtconfig.WriteConfigFile(filepath.Join(nodeConfig.RootDir, "config", "config.toml"), nodeConfig)
