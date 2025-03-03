@@ -1,8 +1,6 @@
 module github.com/thezkcloud/zkcloud
 
-go 1.22.7
-
-toolchain go1.23.4
+go 1.24.0
 
 replace (
 	// fix upstream GHSA-h395-qcrw-5vmq vulnerability.
