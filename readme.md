@@ -1,10 +1,10 @@
-# zkCloud Chain Runner
+# ZkCloud Chain Runner
 
 ## Overview
 
-This repository provides a setup to run the zkCloud chain locally.
+This repository provides a setup to run the ZkCloud chain locally.
 
-zkCloud.io is a cloud-based platform designed for generating and verifying **zero-knowledge proofs (ZKPs)** in a user-friendly and efficient manner. It supports protocols like Groth16, PLONK, and ZK-STARKs, offering high-speed proof generation with the flexibility to handle confidential computations without revealing sensitive information.
+zkcloud.com is a cloud-based platform designed for generating and verifying **zero-knowledge proofs (ZKPs)** in a user-friendly and efficient manner. It supports protocols like Groth16, PLONK, and ZK-STARKs, offering high-speed proof generation with the flexibility to handle confidential computations without revealing sensitive information.
 
 ---
 
