@@ -18,6 +18,7 @@ ENV GO111MODULE=on
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
+    file \
     git \
     # linux-headers are needed for Ledger support
     linux-headers \
@@ -28,8 +29,9 @@ WORKDIR /app
 RUN uname -a &&\
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     make build && \
+    ./zkcloudd version && \
     file ./zkcloudd && \
-    ldd ./zkcloudd || true
+    ldd ./zkcloudd
 
 # Stage 2: Create a minimal image to run the zkcloudd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
