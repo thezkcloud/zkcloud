@@ -26,6 +26,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Debug Git Info
+        run: |
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub Ref Name: ${{ github.ref_name }}"
+          echo "GitHub Ref Type: ${{ github.ref_type }}"
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Tags pointing at current commit:"
+          git tag --points-at HEAD
+          echo "git describe output:"
+          git describe --tags || echo "git describe failed"
+
+      - name: Set version
+        id: set_version
+        run: |
+          # Try to get the tag pointing to the current commit
+          TAG=$(git tag --points-at HEAD)
+          if [[ -n "$TAG" ]]; then
+            echo "version=$TAG" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(git rev-parse --abbrev-ref HEAD)-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Debug version
+        run: |
+          echo "Using version: ${{ steps.set_version.outputs.version }}"
 
       - name: Docker meta
         id: meta
@@ -48,9 +80,10 @@ jobs:
         uses: docker/build-push-action@v6
         id: build-image
         with:
-          build-args: |-
+          build-args: |
             TARGETOS=linux
             TARGETARCH=amd64
+            VERSION=${{ steps.set_version.outputs.version }}
           push: ${{ github.event_name != 'pull_request' }} # Don't push on PR
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
