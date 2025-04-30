@@ -5,6 +5,7 @@ import (
 
 	_ "cosmossdk.io/api/cosmos/tx/config/v1" // import for side-effects
 	clienthelpers "cosmossdk.io/client/v2/helpers"
+	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
@@ -21,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -59,6 +61,17 @@ import (
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	_ "github.com/cosmos/cosmos-sdk/x/staking" // import for side-effects
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+
+	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
+	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	transferv2 "github.com/cosmos/ibc-go/v10/modules/apps/transfer/v2"
+	ibc "github.com/cosmos/ibc-go/v10/modules/core"
+	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
+	ibcapi "github.com/cosmos/ibc-go/v10/modules/core/api"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
+	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
+	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 
 	"github.com/thezkcloud/zkcloud/docs"
 )
@@ -104,6 +117,10 @@ type App struct {
 	EvidenceKeeper       evidencekeeper.Keeper
 	FeeGrantKeeper       feegrantkeeper.Keeper
 	CircuitBreakerKeeper circuitkeeper.Keeper
+
+	// IBC
+	IBCKeeper      *ibckeeper.Keeper        // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
+	TransferKeeper ibctransferkeeper.Keeper // for cross-chain fungible token transfers
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -171,6 +188,7 @@ func New(
 				// The IBC Keeper cannot be passed because it has not been initiated yet.
 				// Passing the getter, the app IBC Keeper will always be accessible.
 				// This needs to be removed after IBC supports App Wiring.
+				app.GetIBCKeeper,
 
 				// here alternative options can be supplied to the DI container.
 				// those options can be used f.e to override the default behavior of some modules.
@@ -206,7 +224,6 @@ func New(
 		panic(err)
 	}
 
-
 	// add to default baseapp options
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
@@ -219,12 +236,17 @@ func New(
 		return nil, err
 	}
 
+	// Wire & initialize IBC module
+	app.initIBC()
+
 	// create the simulation manager and define the order of the modules for deterministic simulations
 	overrideModules := map[string]module.AppModuleSimulation{
 		authtypes.ModuleName: auth.NewAppModule(app.appCodec, app.AccountKeeper, authsims.RandomGenesisAccounts, app.GetSubspace(authtypes.ModuleName)),
 	}
 	app.sm = module.NewSimulationManagerFromAppModules(app.ModuleManager.Modules, overrideModules)
 	app.sm.RegisterStoreDecoders()
+
+	// TODO: Add UpgradeKeeper.SetUpgradeHandler() to migrate store for IBC support.
 
 	// A custom InitChainer sets if extra pre-init-genesis logic is required.
 	// This is necessary for manually registered modules that do not support app wiring.
@@ -242,6 +264,80 @@ func New(
 	}
 
 	return app, nil
+}
+
+func (app *App) initIBC() error {
+	// set up non depinject support modules store keys
+	if err := app.RegisterStores(
+		storetypes.NewKVStoreKey(ibcexported.StoreKey),
+		storetypes.NewKVStoreKey(ibctransfertypes.StoreKey),
+		storetypes.NewTransientStoreKey(paramstypes.TStoreKey),
+	); err != nil {
+		return err
+	}
+
+	// Create IBC Keeper
+	app.IBCKeeper = ibckeeper.NewKeeper(
+		app.AppCodec(),
+		runtime.NewKVStoreService(app.GetKey(ibcexported.StoreKey)),
+		app.GetSubspace(ibcexported.ModuleName),
+		app.UpgradeKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
+	// Create Transfer Keeper
+	app.TransferKeeper = ibctransferkeeper.NewKeeper(
+		app.AppCodec(),
+		runtime.NewKVStoreService(app.GetKey(ibctransfertypes.StoreKey)),
+		app.GetSubspace(ibctransfertypes.ModuleName),
+		app.IBCKeeper.ChannelKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		app.MsgServiceRouter(),
+		app.AccountKeeper,
+		app.BankKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+
+	// Create Transfer Stack for IBC Classic
+	var transferStack porttypes.IBCModule
+	transferStack = ibctransfer.NewIBCModule(app.TransferKeeper)
+
+	// Create static IBC router, add transfer module route, then set and seal it
+	ibcRouter := porttypes.NewRouter()
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
+
+	// Setting Router will finalize all routes by sealing router
+	// No more routes can be added
+	app.IBCKeeper.SetRouter(ibcRouter)
+
+	// Create Transfer Stack for IBC v2
+	var ibcv2TransferStack ibcapi.IBCModule
+	ibcv2TransferStack = transferv2.NewIBCModule(app.TransferKeeper)
+
+	// IBC v2 router creation
+	ibcRouterV2 := ibcapi.NewRouter()
+	ibcRouterV2.AddRoute(ibctransfertypes.PortID, ibcv2TransferStack)
+
+	// Setting Router will finalize all routes by sealing router
+	// No more routes can be added
+	app.IBCKeeper.SetRouterV2(ibcRouterV2)
+
+	// after sealing the IBC router
+	clientKeeper := app.IBCKeeper.ClientKeeper
+	storeProvider := app.IBCKeeper.ClientKeeper.GetStoreProvider()
+
+	tmLightClientModule := ibctm.NewLightClientModule(app.AppCodec(), storeProvider)
+	clientKeeper.AddRoute(ibctm.ModuleName, &tmLightClientModule)
+
+	app.RegisterModules(
+		ibc.NewAppModule(app.IBCKeeper),
+		ibctransfer.NewAppModule(app.TransferKeeper),
+
+		// register light clients on IBC
+		ibctm.NewAppModule(tmLightClientModule),
+	)
+
+	return nil
 }
 
 // LegacyAmino returns App's amino codec.
@@ -307,9 +403,31 @@ func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 	return subspace
 }
 
+// GetIBCKeeper returns the IBC keeper.
+func (app *App) GetIBCKeeper() *ibckeeper.Keeper {
+	return app.IBCKeeper
+}
+
 // SimulationManager implements the SimulationApp interface.
 func (app *App) SimulationManager() *module.SimulationManager {
 	return app.sm
+}
+
+// RegisterIBC Since the IBC modules don't support dependency injection,
+// we need to manually register the modules on the client side.
+// This needs to be removed after IBC supports App Wiring.
+func RegisterIBC(registry cdctypes.InterfaceRegistry) map[string]appmodule.AppModule {
+	modules := map[string]appmodule.AppModule{
+		ibcexported.ModuleName:      ibc.AppModule{},
+		ibctransfertypes.ModuleName: ibctransfer.AppModule{},
+		ibctm.ModuleName:            ibctm.AppModule{},
+	}
+
+	for name, m := range modules {
+		module.CoreAppModuleBasicAdaptor(name, m).RegisterInterfaces(registry)
+	}
+
+	return modules
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
@@ -332,6 +450,7 @@ func GetMaccPerms() map[string][]string {
 	dup := make(map[string][]string)
 	for _, perms := range moduleAccPerms {
 		dup[perms.Account] = perms.Permissions
+		dup[ibctransfertypes.ModuleName] = []string{authtypes.Minter, authtypes.Burner}
 	}
 	return dup
 }
