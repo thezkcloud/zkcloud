@@ -341,7 +341,7 @@ func (app *App) initIBC() error {
 
 	// after sealing the IBC router
 	clientKeeper := app.IBCKeeper.ClientKeeper
-	storeProvider := app.IBCKeeper.ClientKeeper.GetStoreProvider()
+	storeProvider := clientKeeper.GetStoreProvider()
 
 	tmLightClientModule := ibctm.NewLightClientModule(app.AppCodec(), storeProvider)
 	clientKeeper.AddRoute(ibctm.ModuleName, &tmLightClientModule)
