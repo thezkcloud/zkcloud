@@ -17,6 +17,7 @@ import (
 	_ "cosmossdk.io/x/feegrant/module" // import for side-effects
 	_ "cosmossdk.io/x/upgrade"         // import for side-effects
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -246,7 +247,23 @@ func New(
 	app.sm = module.NewSimulationManagerFromAppModules(app.ModuleManager.Modules, overrideModules)
 	app.sm.RegisterStoreDecoders()
 
-	// TODO: Add UpgradeKeeper.SetUpgradeHandler() to migrate store for IBC support.
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic(err)
+	}
+
+	if upgradeInfo.Name == "v0.2.0" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: []string{
+				ibcexported.StoreKey,
+				ibctransfertypes.StoreKey,
+			},
+			Deleted: []string{},
+		}
+
+		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+	}
 
 	// A custom InitChainer sets if extra pre-init-genesis logic is required.
 	// This is necessary for manually registered modules that do not support app wiring.
