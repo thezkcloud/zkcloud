@@ -288,7 +288,6 @@ func (app *App) initIBC() error {
 	if err := app.RegisterStores(
 		storetypes.NewKVStoreKey(ibcexported.StoreKey),
 		storetypes.NewKVStoreKey(ibctransfertypes.StoreKey),
-		storetypes.NewTransientStoreKey(paramstypes.TStoreKey),
 	); err != nil {
 		return err
 	}
