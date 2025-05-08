@@ -1,0 +1,34 @@
+name: example-test
+global:
+  scripts:
+    - tests/cases/example.rhai
+  module_dirs:
+    - tests/modules
+  delay: null
+  repeat: null
+  filter: null
+  skip: null
+  reset_once: false
+  force: false
+  keep_running: false
+components:
+  - name: node
+    type: container
+    start_by_default: true
+    image: quay.io/gevulot/zkcloud:latest
+    command: ["start"]
+    ports:
+      - host: 26656
+        container: 26656
+      - host: 26657
+        container: 26657
+      - host: 9090
+        container: 9090
+    volumes:
+      - host: ./assets/validator
+        container: /root/.zkcloud
+
+reset:
+  - echo 'Reverts assets...'
+  - git checkout -- ./assets
+  
