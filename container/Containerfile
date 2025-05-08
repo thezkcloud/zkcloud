@@ -18,6 +18,7 @@ ARG TARGETARCH=amd64
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
+ARG VERSION
 
 ENV GO111MODULE=on
 # hadolint ignore=DL3018
@@ -29,8 +30,22 @@ RUN apk update && apk add --no-cache \
     linux-headers \
     make \
     musl-dev
-COPY . /app
+
 WORKDIR /app
+
+# Copy go mod files first
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Then copy the rest of the source code
+COPY app/ /app/app/
+COPY cmd/ /app/cmd/
+COPY proto/ /app/proto/
+COPY tools/ /app/tools/
+COPY docs/ /app/docs/
+COPY buf.work.yaml config.yml Makefile /app/
+COPY .git/ /app/.git/
+
 RUN uname -a &&\
     echo "Building with VERSION=${VERSION}" &&\
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
@@ -53,12 +68,10 @@ FROM quay.io/thezkcloud/node:${PREVIOUS_VERSION} AS zkcloud-old
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
 FROM ${RUNTIME_IMAGE} AS runtime
-# Use UID 10,001 because UIDs below 10,000 are a security risk.
-# Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
-ARG UID=10001
-ARG USER_NAME=zkcloud
-ENV HOME=/home/${USER_NAME}
-ENV ZKCLOUD_HOME=/home/${USER_NAME}/.zkcloud
+ARG VERSION
+ARG PREVIOUS_VERSION
+
+ENV ZKCLOUD_HOME=/root/.zkcloud
 ENV DAEMON_HOME=${ZKCLOUD_HOME}
 ENV DAEMON_NAME=zkcloudd
 ENV DAEMON_ALLOW_DOWNLOAD_BINARIES=false
@@ -68,39 +81,31 @@ RUN apk update && apk add --no-cache \
     bash \
     catatonit \
     curl \
-    jq \
-    && adduser ${USER_NAME} \
-    -D \
-    -g ${USER_NAME} \
-    -h ${HOME} \
-    -s /sbin/nologin \
-    -u ${UID}
+    jq
 
 # install cosmovisor
 ADD https://github.com/cosmos/cosmos-sdk/releases/download/cosmovisor%2Fv1.5.0/cosmovisor-v1.5.0-linux-amd64.tar.gz /tmp/cosmovisor.tar.gz
 RUN tar -xvzf /tmp/cosmovisor.tar.gz -C /bin && rm -f /tmp/cosmovisor.tar.gz
 
-# we take the old cosmovisor structure, that contains old binaries since genesis
-COPY --from=zkcloud-old /app/cosmovisor /app/cosmovisor
+# Copy over the old binary as genesis binary into the cosmovisor directory
+RUN mkdir -p /app/cosmovisor/genesis/bin
+COPY --from=zkcloud-old /bin/zkcloudd /app/cosmovisor/genesis/bin/zkcloudd
 
 # Copy the zkcloudd binary from the builder into the final image.
 RUN mkdir -p /app/cosmovisor/upgrades/${VERSION}/bin
 COPY --from=builder /app/zkcloudd /app/cosmovisor/upgrades/${VERSION}/bin/zkcloudd
 
 # Copy scripts into the final image.
-COPY --chown=${USER_NAME}:${USER_NAME} ./container/entrypoint.sh /entrypoint.sh
-COPY --chown=${USER_NAME}:${USER_NAME} ./scripts/init.sh /init.sh
-COPY --chown=${USER_NAME}:${USER_NAME} ./scripts/testnet-multi-node.sh /testnet-multi-node.sh
+COPY ./container/entrypoint.sh /entrypoint.sh
+COPY ./scripts/init.sh /init.sh
+COPY ./scripts/testnet-multi-node.sh /testnet-multi-node.sh
 RUN chmod +x /entrypoint.sh /init.sh /app/cosmovisor/upgrades/${VERSION}/bin/zkcloudd
 
 # Set the current link of cosmovisor to previous release because this is the version that is live
-RUN ln -s /app/cosmovisor/upgrades/${PREVIOUS_VERSION} /app/cosmovisor/current
+RUN ln -s /app/cosmovisor/genesis /app/cosmovisor/current
 
 # Link the newest binary to /app/gevulotd, to make it easier to use
 RUN ln -s /app/cosmovisor/upgrades/${VERSION}/bin/${DAEMON_NAME} /app/${DAEMON_NAME}
-
-# Set the user to zkcloud.
-USER ${USER_NAME}
 
 # Set the working directory to the home directory.
 WORKDIR ${HOME}
