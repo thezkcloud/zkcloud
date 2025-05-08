@@ -7,6 +7,7 @@
 ARG BUILDER_IMAGE=docker.io/golang:1.24.0-alpine3.21
 ARG RUNTIME_IMAGE=docker.io/alpine:3.21
 
+######################################################################################
 # Stage 1: Build the zkcloudd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
@@ -14,6 +15,7 @@ ARG RUNTIME_IMAGE=docker.io/alpine:3.21
 FROM --platform=$BUILDPLATFORM ${BUILDER_IMAGE} AS builder
 ARG TARGETOS
 ARG TARGETARCH
+ARG PREVIOUS_VERSION
 ARG VERSION
 
 ENV GO111MODULE=on
@@ -36,7 +38,16 @@ RUN uname -a &&\
     file ./zkcloudd && \
     ldd ./zkcloudd
 
-# Stage 2: Create a minimal image to run the zkcloudd binary
+
+######################################################################################
+# Stage 2: Pull old zkcloud image (live by default)
+
+# This is how it should be done when actually releasing this image
+FROM quay.io/thezkcloud/node:${PREVIOUS_VERSION} AS zkcloud-old
+
+######################################################################################
+# Stage 3: Finally create a minimal image to compose cosmovisor & all zkcloud binaries in one.
+
 # Ignore hadolint rule because hadolint can't parse the variable.
 # See https://github.com/hadolint/hadolint/issues/339
 # hadolint ignore=DL3006
@@ -47,6 +58,10 @@ ARG UID=10001
 ARG USER_NAME=zkcloud
 ENV HOME=/home/${USER_NAME}
 ENV ZKCLOUD_HOME=/home/${USER_NAME}/.zkcloud
+ENV DAEMON_HOME=${ZKCLOUD_HOME}
+ENV DAEMON_NAME=zkcloudd
+ENV DAEMON_ALLOW_DOWNLOAD_BINARIES=false
+
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     bash \
@@ -59,17 +74,36 @@ RUN apk update && apk add --no-cache \
     -h ${HOME} \
     -s /sbin/nologin \
     -u ${UID}
+
+# install cosmovisor
+ADD https://github.com/cosmos/cosmos-sdk/releases/download/cosmovisor%2Fv1.5.0/cosmovisor-v1.5.0-linux-amd64.tar.gz /tmp/cosmovisor.tar.gz
+RUN tar -xvzf /tmp/cosmovisor.tar.gz -C /bin && rm -f /tmp/cosmovisor.tar.gz
+
+# we take the old cosmovisor structure, that contains old binaries since genesis
+COPY --from=zkcloud-old /app/cosmovisor /app/cosmovisor
+
 # Copy the zkcloudd binary from the builder into the final image.
-COPY --from=builder /app/zkcloudd /bin/zkcloudd
+RUN mkdir -p /app/cosmovisor/upgrades/${VERSION}/bin
+COPY --from=builder /app/zkcloudd /app/cosmovisor/upgrades/${VERSION}/bin/zkcloudd
+
 # Copy scripts into the final image.
 COPY --chown=${USER_NAME}:${USER_NAME} ./container/entrypoint.sh /entrypoint.sh
 COPY --chown=${USER_NAME}:${USER_NAME} ./scripts/init.sh /init.sh
 COPY --chown=${USER_NAME}:${USER_NAME} ./scripts/testnet-multi-node.sh /testnet-multi-node.sh
-RUN chmod +x /entrypoint.sh /init.sh /bin/zkcloudd
+RUN chmod +x /entrypoint.sh /init.sh /app/cosmovisor/upgrades/${VERSION}/bin/zkcloudd
+
+# Set the current link of cosmovisor to previous release because this is the version that is live
+RUN ln -s /app/cosmovisor/upgrades/${PREVIOUS_VERSION} /app/cosmovisor/current
+
+# Link the newest binary to /app/gevulotd, to make it easier to use
+RUN ln -s /app/cosmovisor/upgrades/${VERSION}/bin/${DAEMON_NAME} /app/${DAEMON_NAME}
+
 # Set the user to zkcloud.
 USER ${USER_NAME}
+
 # Set the working directory to the home directory.
 WORKDIR ${HOME}
+
 # Expose ports:
 # 1317 is the default API server port.
 # 9090 is the default GRPC server port.
