@@ -1,14 +1,10 @@
 name: example-test
 global:
   scripts:
-    - tests/cases/example.rhai
+    - tests/script.rhai
   module_dirs:
     - tests/modules
-  delay: null
-  repeat: null
-  filter: null
-  skip: null
-  reset_once: false
+  reset_once: true
   force: false
   keep_running: false
 components:
@@ -30,5 +26,5 @@ components:
 
 reset:
   - echo 'Reverts assets...'
-  - git checkout -- ./assets
-  
+  - git checkout -- ./assets/validator
+  - git clean -fd ./assets/validator
