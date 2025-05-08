@@ -25,6 +25,5 @@ components:
         container: /root/.zkcloud
 
 reset:
-  - echo 'Reverts assets...'
   - git checkout -- ./assets/validator
   - git clean -fd ./assets/validator
