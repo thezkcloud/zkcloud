@@ -1,15 +1,5 @@
-fn wait_one_block() {
-    let res = parse_json(exec("curl localhost:26657/status | jq .result"));
-    let height = parse_int(res.sync_info.latest_block_height);
-    wait_until(||{
-        try {
-            let res = parse_json(exec("curl localhost:26657/status | jq .result"));
-            return parse_int(res.sync_info.latest_block_height) > height;
-        } catch (e) {
-            return false;
-        }
-    }, "10s");
-}
+import "utils" as utils;
+
 describe("Performing an upgrade", || {
     it("should wait for the validator to come up first", || {
         wait_until(||{
@@ -30,13 +20,13 @@ describe("Performing an upgrade", || {
 
     it("should be possible tosubmit an upgrade", || {
         exec("podman cp ./assets/upgrade-proposal.json node:/root/upgrade-proposal.json");
-        wait_one_block();
+        utils::wait_one_block();
         let res = parse_json(exec("podman exec node /app/zkcloudd tx gov submit-proposal /root/upgrade-proposal.json --from alice --chain-id zkcloud --keyring-backend test --fees 250uproof --yes -o json"));
         require(res.code == 0, "Failed to submit upgrade proposal");
     });
 
     it("should be possible to vote for an upgrade", || {
-        wait_one_block();
+        utils::wait_one_block();
         let res = parse_json(exec("podman exec node /app/zkcloudd tx gov vote 1 yes --from alice --chain-id zkcloud --keyring-backend test --fees 250uproof --yes -o json"));
         require(res.code == 0, "Failed to vote for upgrade proposal");
     });
@@ -47,5 +37,15 @@ describe("Performing an upgrade", || {
             return res.proposal.status == "PROPOSAL_STATUS_PASSED";
         }, "10s");
     });
+
+    it("should switch the binaries after block 14", || {
+        let res = exec("podman logs -f node 2>&1 |grep -E  'start.*cosmovisor.*v0.2.0' | head -1");
+        require(res.contains("v0.2.0"), "Failed to switch the binaries");
+    });
+    
+    it("should reach block 15", || {
+        utils::wait_for_block(15);
+    });
     
 });
+
