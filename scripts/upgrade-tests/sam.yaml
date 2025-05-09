@@ -11,7 +11,7 @@ components:
   - name: node
     type: container
     start_by_default: true
-    image: quay.io/gevulot/zkcloud:latest
+    image: quay.io/thezkcloud/node:latest
     command: ["start"]
     ports:
       - host: 26656
