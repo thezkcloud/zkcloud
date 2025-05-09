@@ -39,8 +39,14 @@ describe("Performing an upgrade", || {
     });
 
     it("should switch the binaries after block 14", || {
-        let res = exec("podman logs -f node 2>&1 |grep -E  'start.*cosmovisor.*v0.2.0' | head -1");
-        require(res.contains("v0.2.0"), "Failed to switch the binaries");
+        wait_until(||{
+            try {
+                let res = exec("podman logs node 2>&1 |grep -E 'start.*cosmovisor.*v0.2.0'");
+                return res.contains("v0.2.0");
+            } catch (e) {
+                return false;
+            }
+        }, "10s");
     });
     
     it("should reach block 15", || {
