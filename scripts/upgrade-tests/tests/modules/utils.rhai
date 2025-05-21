@@ -165,7 +165,7 @@ fn reset_validator_state_to_genesis() {
 fn start_validator() {
     let command = `podman run -d --name validator --replace \
         --network test-network \
-        -v ./assets/validator:/root/.zkcloud \
+        -v ./assets/validator:/root/.zkcloud:Z \
         -p 26657 -p 9090 \
         quay.io/thezkcloud/node:latest \
             start`;
@@ -176,7 +176,7 @@ fn start_validator() {
 fn start_fullnode(name) {
     let command = `podman run -d --name ${name} --replace \
         --network test-network \
-        -v ./assets/${name}:/root/.zkcloud \
+        -v ./assets/${name}:/root/.zkcloud:Z \
         -p 26657 -p 9090 \
         quay.io/thezkcloud/node:latest \
             start --p2p.persistent_peers=305ff9a46c0b6de64949340dc2cf2a731a37bc11@validator:26656`;
