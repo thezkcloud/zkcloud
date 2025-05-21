@@ -12,3 +12,9 @@ components: []
 reset:
   - git checkout -- ./assets
   - git clean -fd ./assets
+  - podman run -d --name validator --replace --network test-network -v ./assets/validator:/root/.zkcloud:Z --entrypoint /app/cosmovisor/genesis/bin/zkcloudd quay.io/thezkcloud/node:latest tendermint unsafe-reset-all
+  - podman run -d --name validator --replace --network test-network -v ./assets/fullnode-with-statesync:/root/.zkcloud:Z --entrypoint /app/cosmovisor/genesis/bin/zkcloudd quay.io/thezkcloud/node:latest tendermint unsafe-reset-all
+  - podman run -d --name validator --replace --network test-network -v ./assets/fullnode-without-statesync:/root/.zkcloud:Z --entrypoint /app/cosmovisor/genesis/bin/zkcloudd quay.io/thezkcloud/node:latest tendermint unsafe-reset-all
+  - echo $(jq ".genesis_time = \"$(date -u +'%Y-%m-%dT%H:%M:%S.289848496Z')\"" ./assets/validator/config/genesis.json) > ./assets/validator/config/genesis.json
+  - cp ./assets/validator/config/genesis.json ./assets/fullnode-with-statesync/config/genesis.json
+  - cp ./assets/validator/config/genesis.json ./assets/fullnode-without-statesync/config/genesis.json

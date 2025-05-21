@@ -151,16 +151,6 @@ fn wait_for_tx(node, txhash) {
     }, "1500ms");
 }
 
-fn reset_validator_state_to_genesis() {
-    let command = `podman run -d --name validator --replace \
-        --network test-network \
-        -v ./assets/validator:/root/.zkcloud:Z \
-        -p 26657 -p 9090 \
-        --entrypoint /app/cosmovisor/genesis/bin/zkcloudd \
-        quay.io/thezkcloud/node:latest \
-            tendermint unsafe-reset-all`;
-    exec(command);
-}
 
 fn start_validator() {
     let command = `podman run -d --name validator --replace \

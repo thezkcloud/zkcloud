@@ -3,7 +3,6 @@ import "constants" as constants;
 
 describe("Performing an upgrade", || {
     it("should wait for the validator to come up first", || {
-        utils::reset_validator_state_to_genesis();
         utils::start_validator();
         utils::wait_for_fullnode("validator", "10s");
     });
