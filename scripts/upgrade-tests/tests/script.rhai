@@ -94,7 +94,7 @@ describe("Health after", || {
         });
 
         it("should be possible to start the fullnode", || {
-            utils::start_fullnode("fullnode-with-statesync");
+            utils::start_fullnode_with_upgrade_version("fullnode-with-statesync", "v0.2.0", "15");
             return;
         });
 

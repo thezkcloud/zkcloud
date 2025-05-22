@@ -172,3 +172,15 @@ fn start_fullnode(name) {
             start --p2p.persistent_peers=305ff9a46c0b6de64949340dc2cf2a731a37bc11@validator:26656`;
     exec(command);
 }
+
+fn start_fullnode_with_upgrade_version(name, version, height) {
+    let command = `podman run -d --name ${name} --replace \
+        --network test-network \
+        -v ./assets/${name}:/root/.zkcloud:Z \
+        -p 26657 -p 9090 \
+        -e UPGRADE_VERSION=${version} \
+        -e UPGRADE_HEIGHT=${height} \
+        quay.io/thezkcloud/node:latest \
+            start --p2p.persistent_peers=305ff9a46c0b6de64949340dc2cf2a731a37bc11@validator:26656`;
+    exec(command);
+}
