@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"io"
 
 	_ "cosmossdk.io/api/cosmos/tx/config/v1" // import for side-effects
@@ -274,6 +275,11 @@ func New(
 			return nil, err
 		}
 		return app.App.InitChainer(ctx, req)
+	})
+
+	// This is a no-op upgrade handler, it just returns the current version map.
+	app.UpgradeKeeper.SetUpgradeHandler("v0.2.0", func(ctx context.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return fromVM, nil
 	})
 
 	if err := app.Load(loadLatest); err != nil {
