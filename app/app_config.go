@@ -38,6 +38,9 @@ import (
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
+	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 )
 
 var (
@@ -65,6 +68,11 @@ var (
 		vestingtypes.ModuleName,
 		consensustypes.ModuleName,
 		circuittypes.ModuleName,
+
+		// IBC
+		ibcexported.ModuleName,
+		ibctransfertypes.ModuleName,
+		ibctm.ModuleName,
 	}
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -81,6 +89,10 @@ var (
 		stakingtypes.ModuleName,
 		authz.ModuleName,
 		genutiltypes.ModuleName,
+
+		// IBC
+		ibcexported.ModuleName,
+		ibctransfertypes.ModuleName,
 	}
 
 	endBlockers = []string{
@@ -89,6 +101,10 @@ var (
 		stakingtypes.ModuleName,
 		feegrant.ModuleName,
 		genutiltypes.ModuleName,
+
+		// IBC
+		ibcexported.ModuleName,
+		ibctransfertypes.ModuleName,
 	}
 
 	preBlockers = []string{
@@ -104,6 +120,7 @@ var (
 		{Account: stakingtypes.BondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: stakingtypes.NotBondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
+		{Account: ibctransfertypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
 
