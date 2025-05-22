@@ -108,7 +108,7 @@ RUN ln -s /app/cosmovisor/genesis /app/cosmovisor/current
 RUN ln -s /app/cosmovisor/upgrades/${VERSION}/bin/${DAEMON_NAME} /app/${DAEMON_NAME}
 
 # Set the working directory to the home directory.
-WORKDIR ${HOME}
+WORKDIR ${ZKCLOUD_HOME}
 
 # Expose ports:
 # 1317 is the default API server port.
