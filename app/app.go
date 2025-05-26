@@ -472,7 +472,6 @@ func GetMaccPerms() map[string][]string {
 	dup := make(map[string][]string)
 	for _, perms := range moduleAccPerms {
 		dup[perms.Account] = perms.Permissions
-		dup[ibctransfertypes.ModuleName] = []string{authtypes.Minter, authtypes.Burner}
 	}
 	return dup
 }
